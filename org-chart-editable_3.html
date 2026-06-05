@@ -6929,12 +6929,12 @@ function GalaxyOrgView() {
     if (!chartDisplayRoot) return null;
     const nodes = [];   // { node, x, y, z, depth }
     const edges = [];   // [parentIdx, childIdx]
-    const SHELL = 190;
+    const SHELL = 165;
     const jr = s => { const x = Math.sin(s * 12.9898) * 43758.5453; return x - Math.floor(x); }; // deterministic 0..1
     (function place(node, depth, t0, t1, parentIdx) {
-      // superlinear radius: each level sits much farther out than the last, so the
-      // lower/larger ranks (directors, managers, ICs) get spread far apart
-      const r = depth === 0 ? 0 : SHELL * Math.pow(depth, 1.85);
+      // superlinear radius: each level sits farther out than the last, so the
+      // lower/larger ranks (directors, managers, ICs) get spread apart
+      const r = depth === 0 ? 0 : SHELL * Math.pow(depth, 1.55);
       const tMid = (t0 + t1) / 2;
       const phi = depth === 0 ? 0 : 0.18 * Math.sin(tMid * 1.7) + depth * 0.05;
       const cp = Math.cos(phi), sp = Math.sin(phi);
@@ -6943,7 +6943,7 @@ function GalaxyOrgView() {
       let z = r * cp * Math.sin(tMid);
       let y = r * sp;
       if (depth >= 4) { // scatter deep ranks into a cloud so they don't sit on a thin arc
-        const j = SHELL * (0.8 + (depth - 3) * 0.7);
+        const j = SHELL * (0.5 + (depth - 3) * 0.45);
         x += (jr(idx * 1.7) - 0.5) * j;
         y += (jr(idx * 2.9) - 0.5) * j * 1.5;
         z += (jr(idx * 4.3) - 0.5) * j;
