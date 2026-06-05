@@ -6929,16 +6929,25 @@ function GalaxyOrgView() {
     if (!chartDisplayRoot) return null;
     const nodes = [];   // { node, x, y, z, depth }
     const edges = [];   // [parentIdx, childIdx]
-    const SHELL = 130;
+    const SHELL = 150;
+    const jr = s => { const x = Math.sin(s * 12.9898) * 43758.5453; return x - Math.floor(x); }; // deterministic 0..1
     (function place(node, depth, t0, t1, parentIdx) {
-      const r = depth * SHELL;
+      // superlinear radius: each level sits much farther out than the last, so the
+      // lower/larger ranks (directors, managers, ICs) get spread far apart
+      const r = depth === 0 ? 0 : SHELL * Math.pow(depth, 1.5);
       const tMid = (t0 + t1) / 2;
-      const phi = depth === 0 ? 0 : 0.20 * Math.sin(tMid * 1.7) + 0.04 * depth;
+      const phi = depth === 0 ? 0 : 0.18 * Math.sin(tMid * 1.7) + depth * 0.05;
       const cp = Math.cos(phi), sp = Math.sin(phi);
-      const x = r * cp * Math.cos(tMid);
-      const z = r * cp * Math.sin(tMid);
-      const y = r * sp;
       const idx = nodes.length;
+      let x = r * cp * Math.cos(tMid);
+      let z = r * cp * Math.sin(tMid);
+      let y = r * sp;
+      if (depth >= 4) { // scatter deep ranks into a cloud so they don't sit on a thin arc
+        const j = SHELL * (0.5 + (depth - 3) * 0.4);
+        x += (jr(idx * 1.7) - 0.5) * j;
+        y += (jr(idx * 2.9) - 0.5) * j * 1.5;
+        z += (jr(idx * 4.3) - 0.5) * j;
+      }
       nodes.push({ node, x, y, z, depth });
       if (parentIdx != null) edges.push([parentIdx, idx]);
       const kids = node.children || [];
@@ -6976,22 +6985,31 @@ function GalaxyOrgView() {
     scene.background = new THREE.Color(0x05060a);
     scene.fog = new THREE.FogExp2(0x05060a, 0.00028);
 
-    // Starfield backdrop
-    const starCount = 1400;
-    const starPos = new Float32Array(starCount * 3);
-    for (let i = 0; i < starCount; i++) {
-      const rr = 3000 + Math.random() * 5000;
-      const th = Math.random() * Math.PI * 2;
-      const ph = Math.acos(2 * Math.random() - 1);
-      starPos[i * 3] = rr * Math.sin(ph) * Math.cos(th);
-      starPos[i * 3 + 1] = rr * Math.cos(ph);
-      starPos[i * 3 + 2] = rr * Math.sin(ph) * Math.sin(th);
+    // Starfield backdrop — multiple dense layers for a deep, busy sky
+    const starfield = new THREE.Group();
+    const starLayers = [];
+    function addStarLayer(count, rMin, rRange, color, size, opacity) {
+      const pos = new Float32Array(count * 3);
+      for (let i = 0; i < count; i++) {
+        const rr = rMin + Math.random() * rRange;
+        const th = Math.random() * Math.PI * 2;
+        const ph = Math.acos(2 * Math.random() - 1);
+        pos[i * 3] = rr * Math.sin(ph) * Math.cos(th);
+        pos[i * 3 + 1] = rr * Math.cos(ph);
+        pos[i * 3 + 2] = rr * Math.sin(ph) * Math.sin(th);
+      }
+      const g = new THREE.BufferGeometry();
+      g.setAttribute("position", new THREE.BufferAttribute(pos, 3));
+      const m = new THREE.PointsMaterial({ color, size, sizeAttenuation: false, transparent: true, opacity });
+      const p = new THREE.Points(g, m);
+      p.frustumCulled = false;
+      starfield.add(p);
+      starLayers.push({ g, m });
     }
-    const starGeo = new THREE.BufferGeometry();
-    starGeo.setAttribute("position", new THREE.BufferAttribute(starPos, 3));
-    const starMat = new THREE.PointsMaterial({ color: 0x8895b5, size: 1.6, sizeAttenuation: false, transparent: true, opacity: 0.8 });
-    const stars = new THREE.Points(starGeo, starMat);
-    scene.add(stars);
+    addStarLayer(14000, 3500, 11000, 0x8290b0, 1.2, 0.7);  // deep dim field
+    addStarLayer(6000, 2200, 7000, 0xc3d2f0, 1.7, 0.85);   // mid
+    addStarLayer(2600, 1400, 4500, 0xeaf2ff, 2.4, 0.95);   // near bright
+    scene.add(starfield);
 
     // Shooting stars — a small pool of streaking meteors (visible in both modes)
     const METEOR_N = 10;
@@ -7391,7 +7409,7 @@ function GalaxyOrgView() {
       }
       updateMeteors(dt);
       lodTimer -= dt; if (lodTimer <= 0) { lodTimer = 0.1; updateLODLabels(cam); }
-      stars.rotation.y += dt * 0.004;
+      starfield.rotation.y += dt * 0.004;
       renderer.render(scene, cam);
       raf = requestAnimationFrame(tick);
     }
@@ -7420,7 +7438,7 @@ function GalaxyOrgView() {
       if (document.pointerLockElement === el) document.exitPointerLock?.();
       sphereGeo.dispose(); sphereMat.dispose();
       lineGeo.dispose(); lineMat.dispose();
-      starGeo.dispose(); starMat.dispose();
+      starLayers.forEach(s => { s.g.dispose(); s.m.dispose(); });
       warpGeo.dispose(); warpMat.dispose();
       meteors.forEach(o => { o.g.dispose(); o.m.dispose(); });
       labelDivs.forEach(d => d.remove());
