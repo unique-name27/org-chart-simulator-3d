@@ -6929,12 +6929,12 @@ function GalaxyOrgView() {
     if (!chartDisplayRoot) return null;
     const nodes = [];   // { node, x, y, z, depth }
     const edges = [];   // [parentIdx, childIdx]
-    const SHELL = 150;
+    const SHELL = 190;
     const jr = s => { const x = Math.sin(s * 12.9898) * 43758.5453; return x - Math.floor(x); }; // deterministic 0..1
     (function place(node, depth, t0, t1, parentIdx) {
       // superlinear radius: each level sits much farther out than the last, so the
       // lower/larger ranks (directors, managers, ICs) get spread far apart
-      const r = depth === 0 ? 0 : SHELL * Math.pow(depth, 1.5);
+      const r = depth === 0 ? 0 : SHELL * Math.pow(depth, 1.85);
       const tMid = (t0 + t1) / 2;
       const phi = depth === 0 ? 0 : 0.18 * Math.sin(tMid * 1.7) + depth * 0.05;
       const cp = Math.cos(phi), sp = Math.sin(phi);
@@ -6943,7 +6943,7 @@ function GalaxyOrgView() {
       let z = r * cp * Math.sin(tMid);
       let y = r * sp;
       if (depth >= 4) { // scatter deep ranks into a cloud so they don't sit on a thin arc
-        const j = SHELL * (0.5 + (depth - 3) * 0.4);
+        const j = SHELL * (0.8 + (depth - 3) * 0.7);
         x += (jr(idx * 1.7) - 0.5) * j;
         y += (jr(idx * 2.9) - 0.5) * j * 1.5;
         z += (jr(idx * 4.3) - 0.5) * j;
@@ -7006,9 +7006,10 @@ function GalaxyOrgView() {
       starfield.add(p);
       starLayers.push({ g, m });
     }
-    addStarLayer(14000, 3500, 11000, 0x8290b0, 1.2, 0.7);  // deep dim field
-    addStarLayer(6000, 2200, 7000, 0xc3d2f0, 1.7, 0.85);   // mid
-    addStarLayer(2600, 1400, 4500, 0xeaf2ff, 2.4, 0.95);   // near bright
+    addStarLayer(34000, 6000, 18000, 0x9aa8c8, 1.6, 0.85); // deep dense field
+    addStarLayer(14000, 4500, 10000, 0xd6e2ff, 2.4, 0.95); // mid
+    addStarLayer(6000, 3000, 6500, 0xf2f7ff, 3.4, 1.0);    // near bright
+    addStarLayer(900, 4000, 15000, 0xffffff, 4.8, 1.0);    // sparse blazing "hero" stars
     scene.add(starfield);
 
     // Shooting stars — a small pool of streaking meteors (visible in both modes)
